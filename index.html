@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SpectralDB Micro-Synthesizer</title>
+<style>
+    body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
+    textarea { width: 100%; height: 100px; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    #output { margin-top: 2rem; background: #fff; padding: 1rem; border-radius: 8px; }
+    .variation { margin-bottom: 1rem; padding: 0.5rem; border-bottom: 1px solid #ddd; }
+</style>
+</head>
+<body>
+
+<h1>SpectralDB Micro-Synthesizer</h1>
+
+<textarea id="userInput" placeholder="Enter your text here..."></textarea>
+<br>
+<button id="synthesizeBtn">Synthesize</button>
+
+<div id="output"></div>
+
+<script>
+// --- Utility functions ---
+function breakIntoAtoms(text) {
+    // Basic split by words; could be enhanced with phrases, n-grams, etc.
+    return text.split(/\s+/).filter(Boolean);
+}
+
+function microSynthesize(atoms, variations=5) {
+    // Generate simple shuffled variations
+    const results = [];
+    for (let i = 0; i < variations; i++) {
+        const shuffled = atoms.slice().sort(() => Math.random() - 0.5);
+        results.push(shuffled.join(' '));
+    }
+    return results;
+}
+
+function validateSyntax(text) {
+    // Very simple validation: starts with uppercase, ends with period
+    const trimmed = text.trim();
+    return /^[A-Z]/.test(trimmed) && /[.!?]$/.test(trimmed) ? text : trimmed.charAt(0).toUpperCase() + trimmed.slice(1) + '.';
+}
+
+// --- Main ---
+document.getElementById('synthesizeBtn').addEventListener('click', async () => {
+    const input = document.getElementById('userInput').value;
+    if (!input) return;
+
+    const atoms = breakIntoAtoms(input);
+    const variations = microSynthesize(atoms, 10);
+    const validated = variations.map(v => validateSyntax(v));
+
+    // Display results
+    const outputDiv = document.getElementById('output');
+    outputDiv.innerHTML = '';
+    validated.forEach(v => {
+        const el = document.createElement('div');
+        el.className = 'variation';
+        el.textContent = v;
+        outputDiv.appendChild(el);
+    });
+
+    // Optional: integrate with SpectralDB
+    // Assuming SpectralDB exposes an endpoint at /api/ingest
+    try {
+        await fetch('/api/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input, atoms, variations: validated, timestamp: new Date().toISOString() })
+        });
+        console.log('✅ Ingested into SpectralDB');
+    } catch (e) {
+        console.warn('⚠️ Could not ingest into SpectralDB:', e);
+    }
+});
+</script>
+
+</body>
+</html>
