@@ -2,76 +2,109 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SpectralDB Micro-Synthesizer</title>
+<title>SpectralDB Micro-Synthesizer Lab</title>
 <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
-    textarea { width: 100%; height: 100px; }
-    button { margin-top: 1rem; padding: 0.5rem 1rem; }
-    #output { margin-top: 2rem; background: #fff; padding: 1rem; border-radius: 8px; }
-    .variation { margin-bottom: 1rem; padding: 0.5rem; border-bottom: 1px solid #ddd; }
+  body { font-family: sans-serif; padding: 2rem; background: #f0f4f8; }
+  h1 { margin-bottom: 1rem; }
+  #userInput { width: 100%; height: 80px; }
+  button { margin-top: 0.5rem; padding: 0.5rem 1rem; }
+  #atomsContainer { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .atom { background: #ffd966; padding: 0.5rem 1rem; border-radius: 16px; cursor: grab; }
+  #variations { margin-top: 2rem; }
+  .variation { background: #ffffff; padding: 0.5rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+  .variation:hover { background: #e0f7fa; }
+  #lineage { margin-top: 1rem; font-size: 0.9rem; color: #555; }
 </style>
 </head>
 <body>
 
-<h1>SpectralDB Micro-Synthesizer</h1>
+<h1>SpectralDB Micro-Synthesizer Lab</h1>
 
 <textarea id="userInput" placeholder="Enter your text here..."></textarea>
 <br>
-<button id="synthesizeBtn">Synthesize</button>
+<button id="generateBtn">Generate Variations</button>
 
-<div id="output"></div>
+<div id="atomsContainer"></div>
+
+<div id="variations"></div>
+<div id="lineage"></div>
 
 <script>
-// --- Utility functions ---
+// --- Utilities ---
 function breakIntoAtoms(text) {
-    // Basic split by words; could be enhanced with phrases, n-grams, etc.
     return text.split(/\s+/).filter(Boolean);
 }
 
+function shuffleArray(arr) {
+    return arr.slice().sort(() => Math.random() - 0.5);
+}
+
 function microSynthesize(atoms, variations=5) {
-    // Generate simple shuffled variations
     const results = [];
     for (let i = 0; i < variations; i++) {
-        const shuffled = atoms.slice().sort(() => Math.random() - 0.5);
-        results.push(shuffled.join(' '));
+        const shuffled = shuffleArray(atoms);
+        results.push(shuffled);
     }
     return results;
 }
 
 function validateSyntax(text) {
-    // Very simple validation: starts with uppercase, ends with period
     const trimmed = text.trim();
     return /^[A-Z]/.test(trimmed) && /[.!?]$/.test(trimmed) ? text : trimmed.charAt(0).toUpperCase() + trimmed.slice(1) + '.';
 }
 
+// --- DOM Helpers ---
+function renderAtoms(atoms) {
+    const container = document.getElementById('atomsContainer');
+    container.innerHTML = '';
+    atoms.forEach(atom => {
+        const el = document.createElement('div');
+        el.className = 'atom';
+        el.textContent = atom;
+        container.appendChild(el);
+    });
+}
+
+function renderVariations(variations) {
+    const container = document.getElementById('variations');
+    container.innerHTML = '';
+    variations.forEach((v, idx) => {
+        const el = document.createElement('div');
+        el.className = 'variation';
+        el.textContent = v.join(' ');
+        el.addEventListener('click', () => {
+            displayLineage(v);
+        });
+        container.appendChild(el);
+    });
+}
+
+function displayLineage(atoms) {
+    const lineageDiv = document.getElementById('lineage');
+    lineageDiv.textContent = "Lineage: " + atoms.join(' → ');
+}
+
 // --- Main ---
-document.getElementById('synthesizeBtn').addEventListener('click', async () => {
+document.getElementById('generateBtn').addEventListener('click', async () => {
     const input = document.getElementById('userInput').value;
     if (!input) return;
 
     const atoms = breakIntoAtoms(input);
-    const variations = microSynthesize(atoms, 10);
-    const validated = variations.map(v => validateSyntax(v));
+    renderAtoms(atoms);
 
-    // Display results
-    const outputDiv = document.getElementById('output');
-    outputDiv.innerHTML = '';
-    validated.forEach(v => {
-        const el = document.createElement('div');
-        el.className = 'variation';
-        el.textContent = v;
-        outputDiv.appendChild(el);
-    });
+    const variationsRaw = microSynthesize(atoms, 10);
+    const variationsValidated = variationsRaw.map(v => v.map(word => word.charAt(0).toUpperCase() + word.slice(1)));
 
-    // Optional: integrate with SpectralDB
-    // Assuming SpectralDB exposes an endpoint at /api/ingest
+    renderVariations(variationsValidated);
+
+    // Optional SpectralDB ingestion
     try {
         await fetch('/api/ingest', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ input, atoms, variations: validated, timestamp: new Date().toISOString() })
+            body: JSON.stringify({ input, atoms, variations: variationsValidated.map(v => v.join(' ')), timestamp: new Date().toISOString() })
         });
-        console.log('✅ Ingested into SpectralDB');
+        console.log('✅ Variations ingested into SpectralDB');
     } catch (e) {
         console.warn('⚠️ Could not ingest into SpectralDB:', e);
     }
